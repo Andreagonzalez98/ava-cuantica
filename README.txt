@@ -20,8 +20,8 @@ Este es un prototipo funcional de un **Ambiente Virtual de Aprendizaje (AVA)** d
 
 Puedes iniciar sesión con el siguiente usuario para probar el sistema:
 
-- 📧 Correo: `test@correo.com`  
-- 🔐 Contraseña: `1234`
+- 📧 Correo: `admin@correo.com`  
+- 🔐 Contraseña: `admin123`
 
 ---
 
