@@ -1,14 +1,18 @@
 from flask import Flask, render_template, redirect, url_for, flash, request
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from forms import RegistroForm, LoginForm
 from models import db, Usuario, Modulo, Carrito
-from router.catalogo import catalogo_bp  # Asegúrate que la carpeta se llame "router" o ajusta el import
+from router.catalogo import catalogo_bp
+import os
 
 # --- CONFIGURACIÓN DE FLASK ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'clave_secreta'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ava.db?check_same_thread=False'
+
+# Ruta absoluta segura a la base de datos en la carpeta "instance"
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'ava.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # --- INICIALIZAR EXTENSIONES ---
@@ -22,7 +26,7 @@ login_manager.init_app(app)
 def load_user(user_id):
     return Usuario.query.get(int(user_id))
 
-# --- REGISTRAR BLUEPRINT ---
+# --- REGISTRAR BLUEPRINTS ---
 app.register_blueprint(catalogo_bp)
 
 # --- RUTAS PRINCIPALES ---
@@ -114,11 +118,12 @@ def eliminar_carrito(id):
         flash('No tienes permiso para eliminar este módulo.', 'danger')
     return redirect(url_for('carrito'))
 
-# --- EJECUCIÓN DE LA APP Y CREACIÓN DE BASE DE DATOS + USUARIO DEMO ---
+# --- EJECUCIÓN DE LA APP Y CREACIÓN DE DATOS DEMO ---
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
 
+        # Módulos demo
         if not Modulo.query.first():
             modulos_demo = [
                 Modulo(nombre='Introducción A La Computación Cuántica', descripcion='Qué es\nHistoria\nImportancia de uso', precio=100000),
@@ -127,12 +132,12 @@ if __name__ == '__main__':
             ]
             db.session.add_all(modulos_demo)
 
-        if not Usuario.query.filter_by(correo='test@correo.com').first():
-            usuario_demo = Usuario(nombre='Demo', correo='test@correo.com')
-            usuario_demo.set_password('1234')
+        # Usuario demo
+        if not Usuario.query.filter_by(correo='admin@correo.com').first():
+            usuario_demo = Usuario(nombre='Admin', correo='admin@correo.com')
+            usuario_demo.set_password('admin123')
             db.session.add(usuario_demo)
 
         db.session.commit()
 
     app.run(debug=True)
-
