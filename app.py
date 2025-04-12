@@ -3,38 +3,29 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
 from forms import RegistroForm, LoginForm
 from models import db, Usuario, Modulo, Carrito
+from router.catalogo import catalogo_bp  # Asegúrate que la carpeta se llame "router" o ajusta el import
 
-from router.catalogo import catalogo_bp
-
-
-
-
-# Configuración de la aplicación Flask
+# --- CONFIGURACIÓN DE FLASK ---
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'clave_secreta'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ava.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///ava.db?check_same_thread=False'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Inicialización de base de datos y login
+# --- INICIALIZAR EXTENSIONES ---
 db.init_app(app)
-
 login_manager = LoginManager()
-if __name__ == '__main__':
-    app.register_blueprint(catalogo_bp)
-
 login_manager.login_view = 'login'
 login_manager.init_app(app)
 
+# --- CARGAR USUARIO PARA FLASK-LOGIN ---
 @login_manager.user_loader
 def load_user(user_id):
     return Usuario.query.get(int(user_id))
-# ✅ Aquí registra el blueprint del catálogo
+
+# --- REGISTRAR BLUEPRINT ---
 app.register_blueprint(catalogo_bp)
 
-if __name__ == '__main__':
-    app.run(debug=True)
-    
-# Rutas principales
+# --- RUTAS PRINCIPALES ---
 @app.route('/')
 def index():
     return redirect(url_for('login'))
@@ -86,7 +77,7 @@ def modulo(id):
     modulo = Modulo.query.get_or_404(id)
     return render_template('modulo.html', modulo=modulo)
 
-# Carrito de compras
+# --- CARRITO DE COMPRAS ---
 @app.route('/agregar_carrito/<int:id>')
 @login_required
 def agregar_carrito(id):
@@ -96,9 +87,13 @@ def agregar_carrito(id):
         flash('Este módulo ya está en tu carrito.', 'warning')
     else:
         carrito = Carrito(usuario_id=current_user.id, modulo_id=id)
-        db.session.add(carrito)
-        db.session.commit()
-        flash('Módulo agregado al carrito.', 'success')
+        try:
+            db.session.add(carrito)
+            db.session.commit()
+            flash('Módulo agregado al carrito.', 'success')
+        except Exception:
+            db.session.rollback()
+            flash('Error al agregar al carrito. Intenta de nuevo.', 'danger')
     return redirect(url_for('dashboard'))
 
 @app.route('/carrito')
@@ -119,33 +114,19 @@ def eliminar_carrito(id):
         flash('No tienes permiso para eliminar este módulo.', 'danger')
     return redirect(url_for('carrito'))
 
-# Crear la base de datos, módulos de prueba y usuario demo
+# --- EJECUCIÓN DE LA APP Y CREACIÓN DE BASE DE DATOS + USUARIO DEMO ---
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
 
-        # Crear módulos demo si no existen
         if not Modulo.query.first():
             modulos_demo = [
-                Modulo(
-                    nombre='Introducción A La Computación Cuántica',
-                    descripcion='Qué es\nHistoria\nImportancia de uso',
-                    precio=100.000
-                ),
-                Modulo(
-                    nombre='Puertas cuánticas',
-                    descripcion='Operaciones fundamentales Tipos de puertas: X, Y, Z, Hadamard',
-                    precio=200.0000
-                ),
-                Modulo(
-                    nombre='Algoritmos cuánticos',
-                    descripcion='Algoritmos como Grover y Shor\nAplicaciones prácticas',
-                    precio=400.000
-                )
+                Modulo(nombre='Introducción A La Computación Cuántica', descripcion='Qué es\nHistoria\nImportancia de uso', precio=100000),
+                Modulo(nombre='Puertas cuánticas', descripcion='Operaciones fundamentales\nTipos de puertas: X, Y, Z, Hadamard', precio=200000),
+                Modulo(nombre='Algoritmos cuánticos', descripcion='Grover, Shor y más', precio=400000)
             ]
             db.session.add_all(modulos_demo)
 
-        # Crear usuario demo si no existe
         if not Usuario.query.filter_by(correo='test@correo.com').first():
             usuario_demo = Usuario(nombre='Demo', correo='test@correo.com')
             usuario_demo.set_password('1234')
@@ -154,3 +135,4 @@ if __name__ == '__main__':
         db.session.commit()
 
     app.run(debug=True)
+
